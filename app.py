@@ -168,6 +168,8 @@ def api_orders():
         orders_array = get_orders.get_orders(orders)
         return jsonify({'orders' : orders_array})
 
+#For lastest
+
 @app.route('/api/latest_orders')
 def latest_orders():
     latest_orders = Orderdetails.query.order_by(desc(Orderdetails.id)).limit(5)
