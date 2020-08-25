@@ -3,6 +3,7 @@ import pytz
 import json
 from Orders import prices, random_order_no_generator
 from CustomDatetime.convert_datetime_str import convert_str
+from mpesa.lipa_na_mpesa import lipa_na_mpesa
 
 def place_order(order_data, db, order_details_model):
 
@@ -15,9 +16,9 @@ def place_order(order_data, db, order_details_model):
 
         # Fetching the price for the particular order
 
-        order_type= order_data['order_type']
-        brand=order_data['brand']
-        size=order_data['size']
+        order_type = order_data['order_type']
+        brand = order_data['brand']
+        size = order_data['size']
 
         price = prices.fetch_price(order_type,brand,size)
 
@@ -34,18 +35,23 @@ def place_order(order_data, db, order_details_model):
         
         #Change "location" to json strings from dicts
 
+
         order_data["location"] = json.dumps(order_data["location"])
-        
+
 
         #Store order persistently in db
         
         new_order = order_details_model(order_no= order_number, name=order_data['name'], phone_no=order_data['phone_no'], order_servicing= order_servicing,
+                                        size=order_data['size'], brand=order_data['brand'], order_type=order_data['order_type'],
                                     location=order_data['location'], placed_time= placed_time, date_time=order_data['date_time'], complete="Pending", 
                                     amount= price)
         db.session.add(new_order)
         db.session.commit()
 
         message = "Order has been placed succesfully"
+
+        # Trigger mpesa stkpush
+        lipa_na_mpesa(order_data['phone_no'], price)
 
         response =  order_number, message, price
 

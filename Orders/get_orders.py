@@ -10,11 +10,12 @@ def get_orders(orders):
         order_data['order_type'] = order.order_type
         order_data['brand'] = order.brand
         order_data['size'] = order.size
-        order_data['gate_region'] = order.gate_region
-        order_data['apartment'] = order.apartment
-        order_data['date_placed'] = order.date_placed
-        order_data['time_placed'] = (order.time_placed).split(".")[0]
+        order_data['location'] = order.location
+        order_data['placed_time'] = order.placed_time
+        order_data['date_time'] = order.date_time
+        order_data['order_servicing'] = order.order_servicing
         order_data['complete'] = order.complete
+        order_data['amount'] = order.amount
         orders_array.append(order_data)
     
     return orders_array

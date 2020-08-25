@@ -5,7 +5,7 @@ from datetime import datetime, date, time
 from sqlalchemy import *
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from Orders import order_placement, get_orders
+from Orders import order_placement, get_orders, filter_orders
 import json
 
 
@@ -54,12 +54,16 @@ class Admin(db.Model):
 
 
 class Orderdetails(db.Model):
-    order_no = db.Column(db.String(20), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    order_no = db.Column(db.String(20))
     name = db.Column(db.String(50))
     phone_no = db.Column(db.String(11))
     order_servicing = db.Column(db.String(10))
     placed_time = db.Column(db.String(30))
     date_time = db.Column(db.String(30))
+    size = db.Column(db.String(10))
+    brand = db.Column(db.String(20))
+    order_type = db.Column(db.String(20))
     complete = db.Column(db.String(10))
     location = db.Column(db.JSON, default={})
     amount = db.Column(db.Integer)
@@ -80,9 +84,11 @@ def login():
         if user:
             if user_data['password'] == user.password:
                 login_user(user)
+                user_name = user.name
+                # get user phone number from login details
 
                 # return redirect(url_for('orders'))  # orders()
-                response = jsonify(message="Successfully logged in")
+                response = jsonify(message="Successfully logged in", name=user_name)
                 return response
         response = jsonify(message="Invalid username/password combination")
         return response
@@ -134,44 +140,8 @@ def signup():
 
     else:
 
-        return render_template('signup.html')
+        return jsonify(message= "Error found")
 
-
-@app.route('/complete_order_in_admin/<theid>', methods=['PUT', 'GET', 'POST'])
-def complete_order_in_admin(theid):
-    idd = theid
-
-    Orderdetails.query.filter_by(id=idd).update(
-        {Orderdetails.complete: "Completed"})
-    db.session.commit()
-
-    return redirect(url_for('admin'))
-
-
-@app.route('/complete_order_in_latest/<theid>', methods=['PUT', 'GET', 'POST'])
-def complete_order_in_latest(theid):
-    idd = theid
-    Orderdetails.query.filter_by(id=idd).update(
-        {Orderdetails.complete: "Completed"})
-    db.session.commit()
-
-    return redirect(url_for('latest_orders'))
-
-
-@app.route('/complete_order_in_pending/<theid>', methods=['PUT', 'GET', 'POST'])
-def complete_order_in_pending(theid):
-    idd = theid
-
-    Orderdetails.query.filter_by(id=idd).update(
-        {Orderdetails.complete: "Completed"})
-    db.session.commit()
-    return redirect(url_for('pending_orders'))
-
-
-@app.route('/confirm_order')
-@login_required
-def confirm():
-    return render_template('order_confirmation.html', name=current_user.name)
 
 
 @app.route('/logout')
@@ -193,10 +163,33 @@ def api_orders():
         return jsonify(order_no = response[0], message=response[1], price = response[2])
 
     elif request.method == 'GET':
-        orders = Orderdetails.query.all()
+        orders = Orderdetails.query.order_by(desc(Orderdetails.id))
 
         orders_array = get_orders.get_orders(orders)
         return jsonify({'orders' : orders_array})
+
+@app.route('/api/latest_orders')
+def latest_orders():
+    latest_orders = Orderdetails.query.order_by(desc(Orderdetails.id)).limit(5)
+    orders_array = get_orders.get_orders(latest_orders)
+    return jsonify({'orders' : orders_array})
+
+@app.route('/api/pending_orders')
+def pending_orders():
+    pending_orders = Orderdetails.query.filter_by(
+        complete='Pending').order_by(desc(Orderdetails.id))
+    orders_array = get_orders.get_orders(pending_orders)
+    return jsonify({'orders' : orders_array})
+
+@app.route('/complete_order/<order_no>', methods=['PUT', 'GET', 'POST'])
+def complete_order(order_no):
+
+    Orderdetails.query.filter_by(order_no=order_no).update(
+        {Orderdetails.complete: "Completed"})
+    db.session.commit()
+
+    return jsonify(message="Succesfully completed")
+
 
 @app.route('/api/get_price', methods=['POST'])
 def get_price():
@@ -206,6 +199,12 @@ def get_price():
     return jsonify(message=response[0],  
                        price = response[1])
 
+@app.route('/api/filter', methods=['POST'])
+def filter():
+    req_data = request.get_json()
+    orders = filter_orders.filter(req_data, Orderdetails)
+    orders_array = get_orders.get_orders(orders)
+    return jsonify({'orders': orders_array})
 
 if __name__ == "__main__":
     app.run()
